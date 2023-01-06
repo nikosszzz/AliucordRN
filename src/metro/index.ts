@@ -29,6 +29,31 @@ function blacklist(id: number) {
     });
 }
 
+// this is going to massively affect performance, TODO
+const callbacks: ((id: number) => void)[] = [];
+
+// call this whenever a module is initialized
+const onModuleInitialization = (id: number) => {
+    console.log(id);
+    callbacks.forEach(cb => cb(id));
+};
+
+for (const key in modules) {
+    const mod = modules[key];
+    if (!mod) continue;
+
+    if (!mod.isInitialized && mod.factory) {
+        mod.originalFactory = mod.factory;
+        mod.factory = (...args: any) => {
+            const module = mod.originalFactory(...args);
+            delete mod.originalFactory;
+
+            onModuleInitialization(Number(key));
+            return module;
+        };
+    }
+}
+
 let nullProxyFound = false;
 
 for (const key in modules) {
@@ -57,31 +82,6 @@ for (const key in modules) {
 
 if (!nullProxyFound) {
     console.warn("Null proxy not found, expect problems");
-}
-
-// this is going to massively affect performance, TODO
-const callbacks: ((id: number) => void)[] = [];
-
-// call this whenever a module is initialized
-const onModuleInitialization = (id: number) => {
-    console.log(id);
-    callbacks.forEach(cb => cb(id));
-};
-
-for (const key in modules) {
-    const mod = modules[key];
-    if (!mod) continue;
-
-    if (!mod.isInitialized && mod.factory) {
-        mod.originalFactory = mod.factory;
-        mod.factory = (...args: any) => {
-            const module = mod.originalFactory(...args);
-            delete mod.originalFactory;
-
-            onModuleInitialization(Number(key));
-            return module;
-        };
-    }
 }
 
 /**
@@ -128,8 +128,8 @@ export async function getModuleLazy(filter: (module: any) => boolean, options?: 
 }
 
 /**
- * Find the id of a module from its factory strings, useful for finding modules that are not exported.
- * Make sure the factory strings are unique, otherwise it will return the first one it finds.
+ * Find the id of a module from its factory strings, useful for loading modules without waiting for Discord.
+ * Make sure the factory string check are unique, otherwise it will return the first one it finds.
  * @param filter Strings filter
  * @returns Module id if found, else null
  */
@@ -139,15 +139,16 @@ export function getIdByFactoryStrings(filter: ((strings: string[]) => boolean)):
         if (!module || !module.originalFactory || !module.factory) continue;
 
         const strings = AliuHermes.findStrings(module.originalFactory || module.factory);
-        if (filter(strings)) return Number(key);
+        if (filter(strings))
+            return Number(key);
     }
 
     return null;
 }
 
 /**
- * Find a module from its factory strings, useful for finding modules that are not exported.
- * Make sure the factory strings are unique, otherwise it will return the first one it finds.
+ * Find a module from its factory strings, useful for loading modules without waiting for Discord.
+ * Make sure the string check are unique, otherwise it will return the first one it finds.
  * @param filter Strings filter
  * @returns Initialized module if found, else null
  */
@@ -155,6 +156,46 @@ export function getByFactoryStrings(filter: ((strings: string[]) => boolean)) {
     const id = getIdByFactoryStrings(filter);
 
     return id ? window.__r(id) : null;
+}
+
+export async function getByPropsLazy<T extends string>(...props: T[]): Promise<PropIntellisense<T>>;
+export async function getByPropsLazy<T extends string>(...options: [...props: T[], options: FilterOptions]): Promise<PropIntellisense<T>>;
+export async function getByPropsLazy<T extends string>(...options: [...props: T[], defaultExport: boolean]): Promise<PropIntellisense<T>>;
+export async function getByPropsLazy(...props: any[]): Promise<any> {
+    if (!props.length) return null;
+
+    const options = typeof props[props.length - 1] === "object" ? props.pop() : {};
+    const filter = (module: any) => {
+        for (let i = 0, len = props.length; i < len; i++)
+            if (module[props[i]] === undefined) return false;
+        return true;
+    };
+
+    return await getModuleLazy(filter, typeof options === "boolean" ? { default: options } : options);
+}
+
+/**
+ * Lazyly find a module by its displayName property. Usually useful for finding React Components
+ * @returns Module if found, else null
+ */
+export async function getByDisplayNameLazy(displayName: string, options?: FilterOptions) {
+    return await getModuleLazy(m => m.displayName === displayName, options);
+}
+
+/**
+ * Find a module by its default.name property. Usually useful for finding React Components
+ * @returns Module if found, else null
+ */
+export async function getByNameLazy(defaultName: string, options?: FilterOptions) {
+    return await getModuleLazy(m => m?.default?.name === defaultName, options);
+}
+
+/**
+ * Find a Store by its name. 
+ * @returns Module if found, else null
+ */
+export async function getByStoreNameLazy(storeName: string, options?: FilterOptions) {
+    return await getModuleLazy(m => m.getName?.() === storeName, options);
 }
 
 /**
