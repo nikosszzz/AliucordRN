@@ -59,6 +59,104 @@ if (!nullProxyFound) {
     console.warn("Null proxy not found, expect problems");
 }
 
+// this is going to massively affect performance, TODO
+const callbacks: ((id: number) => void)[] = [];
+
+// call this whenever a module is initialized
+const onModuleInitialization = (id: number) => {
+    console.log(id);
+    callbacks.forEach(cb => cb(id));
+};
+
+for (const key in modules) {
+    const mod = modules[key];
+    if (!mod) continue;
+
+    if (!mod.isInitialized && mod.factory) {
+        mod.originalFactory = mod.factory;
+        mod.factory = (...args: any) => {
+            const module = mod.originalFactory(...args);
+            delete mod.originalFactory;
+
+            onModuleInitialization(Number(key));
+            return module;
+        };
+    }
+}
+
+/**
+ * Get a module right after it was initialized.
+ * @param filter Module filter
+ * @param options Options.
+ * @returns Promise that resolves to the module when it gets loaded.
+ */
+export async function getModuleLazy(filter: (module: any) => boolean, options?: any): Promise<any> {
+    const { exports = true, default: defaultExport = true } = options ?? {};
+
+    for (const key in modules) {
+        const module = modules[key];
+        if (!module || !module.isInitialized) continue;
+
+        const mod = window.__r(key);
+        if (!mod) continue;
+
+        if (filter(mod)) {
+            return exports ? mod : module.publicModule;
+        }
+
+        if (mod.default && filter(mod.default)) {
+            return defaultExport ? mod.default : exports ? mod : module.publicModule;
+        }
+    }
+
+    return await new Promise(resolve => {
+        const lookup = (id: number) => {
+            const module = window.__r(id);
+            if (!module) return;
+
+            if (filter(module)) {
+                callbacks.splice(callbacks.indexOf(lookup), 1);
+                resolve(exports ? module : modules[id].publicModule);
+            } else if (module.default && filter(module.default)) {
+                callbacks.splice(callbacks.indexOf(lookup), 1);
+                resolve(defaultExport ? module.default : exports ? module : modules[id].publicModule);
+            }
+        };
+
+        callbacks.push(lookup);
+    });
+}
+
+/**
+ * Find the id of a module from its factory strings, useful for finding modules that are not exported.
+ * Make sure the factory strings are unique, otherwise it will return the first one it finds.
+ * @param filter Strings filter
+ * @returns Module id if found, else null
+ */
+export function getIdByFactoryStrings(filter: ((strings: string[]) => boolean)): number | null {
+    for (const key in modules) {
+        const module = modules[key];
+        if (!module || !module.originalFactory || !module.factory) continue;
+
+        const strings = AliuHermes.findStrings(module.originalFactory || module.factory);
+        if (filter(strings)) return Number(key);
+    }
+
+    return null;
+}
+
+/**
+ * Find a module from its factory strings, useful for finding modules that are not exported.
+ * Make sure the factory strings are unique, otherwise it will return the first one it finds.
+ * @param filter Strings filter
+ * @returns Initialized module if found, else null
+ */
+export function getByFactoryStrings(filter: ((strings: string[]) => boolean)) {
+    const id = getIdByFactoryStrings(filter);
+
+    return id ? window.__r(id) : null;
+}
+
 /**
  * Find a Discord Module
  * @param filter Module filter
