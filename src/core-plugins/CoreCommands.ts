@@ -2,12 +2,13 @@ import { sha } from "aliucord-version";
 import { ApplicationCommandOptionType } from "../api/Commands";
 import { plugins } from "../api/PluginManager";
 import { Plugin } from "../entities/Plugin";
-import { getByProps, Locale, MessageActions } from "../metro";
+import { getByProps } from "../metro";
+import { Locale, MessageActions } from "../metro/commons";
 import { DebugInfo } from "../utils/debug/DebugInfo";
 import { makeAsyncEval } from "../utils/misc";
 
 export default class CoreCommands extends Plugin {
-    start() {
+    async start() {
         const ClydeUtils = getByProps("sendBotMessage");
         this.commands.registerCommand({
             name: "echo",

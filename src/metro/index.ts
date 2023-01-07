@@ -1,4 +1,3 @@
-import type { ImageSourcePropType, ImageStyle, TextStyle, ViewStyle } from "react-native";
 import { Logger } from "../utils/Logger";
 
 declare const __r: (moduleId: number) => any;
@@ -27,31 +26,6 @@ function blacklist(id: number) {
         configurable: true,
         writable: true
     });
-}
-
-// this is going to massively affect performance, TODO
-const callbacks: ((id: number) => void)[] = [];
-
-// call this whenever a module is initialized
-const onModuleInitialization = (id: number) => {
-    console.log(id);
-    callbacks.forEach(cb => cb(id));
-};
-
-for (const key in modules) {
-    const mod = modules[key];
-    if (!mod) continue;
-
-    if (!mod.isInitialized && mod.factory) {
-        mod.originalFactory = mod.factory;
-        mod.factory = (...args: any) => {
-            const module = mod.originalFactory(...args);
-            delete mod.originalFactory;
-
-            onModuleInitialization(Number(key));
-            return module;
-        };
-    }
 }
 
 let nullProxyFound = false;
@@ -84,46 +58,100 @@ if (!nullProxyFound) {
     console.warn("Null proxy not found, expect problems");
 }
 
+// this is going to massively affect performance, TODO
+export const callbacks: ((id: number) => void)[] = [];
+
+// call this whenever a module is initialized
+const onModuleInitialization = (id: number) => {
+    console.log(id);
+    callbacks.forEach(cb => cb(id));
+};
+
+for (const key in modules) {
+    const mod = modules[key];
+    if (!mod) continue;
+
+    if (!mod.isInitialized && mod.factory) {
+        mod.originalFactory = mod.factory;
+        mod.factory = (...args: any) => {
+            const module = mod.originalFactory(...args);
+
+            onModuleInitialization(Number(key));
+            return module;
+        };
+    }
+}
+
+// returns null if module is invalid/not initialized
+function getModuleById(id: any): any | null {
+    const module = modules[id];
+    if (!module || !module.isInitialized) return null;
+
+    let mod;
+    try {
+        mod = __r(id);
+    } catch {
+        // ignore
+    }
+
+    if (!mod) return null;
+
+    return mod;
+}
+
+export function waitFor(filter: (module: any) => boolean, callback: (mod: any) => void, options?: any) {
+    options = {
+        ...{ exports: true, default: true },
+        ...(options ?? {})
+    };
+
+    const { exports, default: defaultExport } = options;
+
+    for (const key in modules) {
+        const mod = getModuleById(key);
+        if (!mod) continue;
+
+        if (filter(mod)) {
+            callback(exports ? mod : mod.publicModule);
+            return;
+        }
+
+        if (mod.default && filter(mod.default)) {
+            callback(defaultExport ? mod.default : exports ? mod : mod.publicModule);
+            return;
+        }
+    }
+
+    const lookup = (id: number) => {
+        const module = __r(id);
+        if (!module) return;
+
+        if (filter(module)) {
+            callback(module);
+            callbacks.splice(callbacks.indexOf(lookup), 1);
+        } else if (module.default && filter(module.default)) {
+            callback(module.default);
+            callbacks.splice(callbacks.indexOf(lookup), 1);
+        }
+    };
+
+    callbacks.push(lookup);
+}
+
 /**
  * Get a module right after it was initialized.
  * @param filter Module filter
  * @param options Options.
  * @returns Promise that resolves to the module when it gets loaded.
  */
-export async function getModuleLazy(filter: (module: any) => boolean, options?: any): Promise<any> {
-    const { exports = true, default: defaultExport = true } = options ?? {};
+export function getModuleLazy(filter: (module: any) => boolean, options?: any): Promise<any> {
+    options = {
+        ...{ exports: true, default: true },
+        ...(options ?? {})
+    };
 
-    for (const key in modules) {
-        const module = modules[key];
-        if (!module || !module.isInitialized) continue;
-
-        const mod = window.__r(key);
-        if (!mod) continue;
-
-        if (filter(mod)) {
-            return exports ? mod : module.publicModule;
-        }
-
-        if (mod.default && filter(mod.default)) {
-            return defaultExport ? mod.default : exports ? mod : module.publicModule;
-        }
-    }
-
-    return await new Promise(resolve => {
-        const lookup = (id: number) => {
-            const module = window.__r(id);
-            if (!module) return;
-
-            if (filter(module)) {
-                callbacks.splice(callbacks.indexOf(lookup), 1);
-                resolve(exports ? module : modules[id].publicModule);
-            } else if (module.default && filter(module.default)) {
-                callbacks.splice(callbacks.indexOf(lookup), 1);
-                resolve(defaultExport ? module.default : exports ? module : modules[id].publicModule);
-            }
-        };
-
-        callbacks.push(lookup);
+    return new Promise(resolve => {
+        waitFor(filter, resolve, options);
     });
 }
 
@@ -136,7 +164,7 @@ export async function getModuleLazy(filter: (module: any) => boolean, options?: 
 export function getIdByFactoryStrings(filter: ((strings: string[]) => boolean)): number | null {
     for (const key in modules) {
         const module = modules[key];
-        if (!module || !module.originalFactory || !module.factory) continue;
+        if (!module || (!module.originalFactory && !module.factory)) continue;
 
         const strings = AliuHermes.findStrings(module.originalFactory || module.factory);
         if (filter(strings))
@@ -158,45 +186,16 @@ export function getByFactoryStrings(filter: ((strings: string[]) => boolean)) {
     return id ? window.__r(id) : null;
 }
 
-export async function getByPropsLazy<T extends string>(...props: T[]): Promise<PropIntellisense<T>>;
-export async function getByPropsLazy<T extends string>(...options: [...props: T[], options: FilterOptions]): Promise<PropIntellisense<T>>;
-export async function getByPropsLazy<T extends string>(...options: [...props: T[], defaultExport: boolean]): Promise<PropIntellisense<T>>;
-export async function getByPropsLazy(...props: any[]): Promise<any> {
-    if (!props.length) return null;
-
-    const options = typeof props[props.length - 1] === "object" ? props.pop() : {};
-    const filter = (module: any) => {
+export const filters = {
+    byStoreName: (storeName: string) => (m: any) => m.getName?.() === storeName,
+    byDisplayName: (displayName: string) => (m: any) => m.displayName === displayName,
+    byName: (defaultName: string) => (m: any) => m?.default?.name === defaultName,
+    byProps: (...props: string[]) => (m: any) => {
         for (let i = 0, len = props.length; i < len; i++)
-            if (module[props[i]] === undefined) return false;
+            if (m[props[i]] === undefined) return false;
         return true;
-    };
-
-    return await getModuleLazy(filter, typeof options === "boolean" ? { default: options } : options);
-}
-
-/**
- * Lazyly find a module by its displayName property. Usually useful for finding React Components
- * @returns Module if found, else null
- */
-export async function getByDisplayNameLazy(displayName: string, options?: FilterOptions) {
-    return await getModuleLazy(m => m.displayName === displayName, options);
-}
-
-/**
- * Find a module by its default.name property. Usually useful for finding React Components
- * @returns Module if found, else null
- */
-export async function getByNameLazy(defaultName: string, options?: FilterOptions) {
-    return await getModuleLazy(m => m?.default?.name === defaultName, options);
-}
-
-/**
- * Find a Store by its name. 
- * @returns Module if found, else null
- */
-export async function getByStoreNameLazy(storeName: string, options?: FilterOptions) {
-    return await getModuleLazy(m => m.getName?.() === storeName, options);
-}
+    }
+};
 
 /**
  * Find a Discord Module
@@ -210,12 +209,8 @@ export function getModule(filter: (module: any) => boolean, options?: FilterOpti
     for (const key in modules) {
         const id = Number(key);
 
-        let mod;
-        try {
-            mod = __r(id);
-        } catch {
-            // Some modules throw error, ignore
-        }
+        if (!modules[id] || !modules[id].isInitialized) continue;
+        const mod = __r(id);
         if (!mod) continue;
 
         try {
@@ -386,76 +381,3 @@ export function searchByKeyword(keyword: string, skipConstants = true) {
 
     return matches;
 }
-
-export const UserStore = getByStoreName("UserStore");
-export const GuildStore = getByStoreName("GuildStore");
-export const ThemeStore = getByStoreName("ThemeStore");
-export const ChannelStore = getByStoreName("ChannelStore");
-export const MessageStore = getByStoreName("MessageStore");
-export const GuildMemberStore = getByStoreName("GuildMemberStore");
-export const SelectedChannelStore = getByStoreName("SelectedChannelStore");
-
-export const ModalActions = getByProps("closeModal");
-export const MessageActions = getByProps("sendMessage", "receiveMessage");
-export const FluxDispatcher = getByProps("subscribe", "isDispatching");
-export const FetchUserActions = getByProps("fetchProfile");
-export const ContextMenuActions = getByProps("openContextMenu");
-export const SnowflakeUtils = getByProps("fromTimestamp", "extractTimestamp");
-export const Locale = getByProps("Messages");
-export const AMOLEDThemeManager = getByProps("setAMOLEDThemeEnabled");
-
-export const Clipboard = getByProps("getString", "setString") as {
-    getString(): Promise<string>,
-    setString(str: string): Promise<void>;
-};
-
-export const Dialog = getByProps("show", "openLazy", "confirm", "close") as {
-    show(options: {
-        title?: string,
-        body?: string,
-        confirmText?: string,
-        cancelText?: string,
-        confirmColor?: string,
-        isDismissable?: boolean,
-        onConfirm?: () => any,
-        onCancel?: () => any,
-        [k: PropertyKey]: any;
-    }),
-    close(),
-    [k: PropertyKey]: any;
-};
-
-export const Toasts = getModule(m => (
-    m.open !== undefined && m.close !== undefined && !m.openLazy && !m.startDrag && !m.init && !m.openReplay && !m.openChannelCallPopout
-)) as {
-    open(options: {
-        content?: string,
-        source?: ImageSourcePropType,
-        [k: PropertyKey]: any;
-    }),
-    close(),
-    [k: PropertyKey]: any;
-};
-
-export const RestAPI = getByProps("getAPIBaseURL", "get");
-export const Flux = getByProps("connectStores");
-export const React = getByProps("createElement") as typeof import("react");
-export const ReactNative = getByProps("Text", "Image") as typeof import("react-native");
-export const Constants = getByProps("Fonts") as import("./constants").default;
-export const URLOpener = getByProps("openURL", "handleSupportedURL");
-export const Forms = getByProps("FormSection");
-export const Scenes = getByName("getScreens", { default: false });
-export const ThemeManager = getByProps("updateTheme", "overrideTheme");
-
-// Abandon all hope, ye who enter here
-type Style = ViewStyle & ImageStyle & TextStyle;
-type Styles = Partial<{ [key in keyof Style]: readonly [Style[key], Style[key]] | Style[key] }>;
-type FlattenValue<T> = { [key in keyof T]: T[key] extends ReadonlyArray<infer E> ? E : T[key] };
-
-export const Styles = getByProps("createThemedStyleSheet") as {
-    ThemeColorMap: Record<string, [string, string]>;
-    createThemedStyleSheet: <T extends { [key: string]: Styles; }>(styles: T)
-        => { [key in keyof T]: FlattenValue<T[key]>; };
-    getThemedStylesheet: <T extends { [key: string]: Styles; }>(styles: T)
-        => Record<"mergedDarkStyles" | "mergedLightStyles", { [key in keyof T]: FlattenValue<T[key]>; }>;
-};

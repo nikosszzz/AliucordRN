@@ -1,4 +1,4 @@
-import { SnowflakeUtils } from "../metro";
+import { SnowflakeUtils } from "../metro/commons";
 
 export interface CommandSection {
     id: string;

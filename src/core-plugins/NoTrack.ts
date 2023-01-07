@@ -7,7 +7,7 @@ import { getByProps } from "../metro/index";
 import { insteadDoNothing } from "../utils/patcher";
 
 export default class NoTrack extends Plugin {
-    public start() {
+    public async start() {
         const Analytics = getByProps("getSuperPropertiesBase64", "track");
         const Snitch = getByProps("submitLiveCrashReport");
         const { AnalyticsActionHandlers } = getByProps("AnalyticsActionHandlers");

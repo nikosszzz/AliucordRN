@@ -1,5 +1,7 @@
 import { Plugin } from "../entities";
-import { getByName, React, ReactNative, Styles, Toasts } from "../metro";
+import { filters, waitFor } from "../metro";
+import { React, ReactNative, Styles, Toasts } from "../metro/commons";
+
 import { after } from "../utils/patcher";
 
 const { View, Image, Pressable } = ReactNative;
@@ -33,7 +35,37 @@ const roles = {
 
 export default class Badges extends Plugin {
     start() {
-        const ProfileBadges = getByName("ProfileBadges", { default: false });
+        waitFor(filters.byName("ProfileBadges"), ProfileBadges => {
+            after(ProfileBadges, "default", (ctx) => {
+                const user = ctx.args[0]?.user;
+                if (user === undefined) return;
+
+                const badges = cache[user.id];
+                if (badges !== undefined) {
+                    const renderedBadges = badges.map(badge => {
+                        return <Pressable key={badge.url} onPress={() => {
+                            Toasts.open({
+                                content: badge.text,
+                                source: { uri: badge.url }
+                            });
+                        }}>
+                            <Image source={{ uri: badge.url }} style={styles.img} />
+                        </Pressable>;
+                    });
+
+                    if (!ctx.result) return <View key="aliu-badges" style={styles.container}>{renderedBadges}</View>;
+
+                    ctx.result.props.children.push(<View key="aliu-badges" style={styles.container}>{renderedBadges}</View>);
+                    return;
+                }
+
+                fetch(`${url}/users/${user.id}.json`)
+                    .then(r => r.json())
+                    .then((badges: BadgeOwner) => {
+                        cache[user.id] = [...badges.roles.map(it => roles[it]), ...(badges.custom ?? [])];
+                    });
+            });
+        }, { default: false });
 
         const styles = Styles.createThemedStyleSheet({
             container: {
@@ -51,35 +83,5 @@ export default class Badges extends Plugin {
         });
 
         const cache: Record<string, Badge[]> = {};
-
-        after(ProfileBadges, "default", (ctx) => {
-            const user = ctx.args[0]?.user;
-            if (user === undefined) return;
-
-            const badges = cache[user.id];
-            if (badges !== undefined) {
-                const renderedBadges = badges.map(badge => {
-                    return <Pressable key={badge.url} onPress={() => {
-                        Toasts.open({
-                            content: badge.text,
-                            source: { uri: badge.url }
-                        });
-                    }}>
-                        <Image source={{ uri: badge.url }} style={styles.img} />
-                    </Pressable>;
-                });
-
-                if (!ctx.result) return <View key="aliu-badges" style={styles.container}>{renderedBadges}</View>;
-
-                ctx.result.props.children.push(<View key="aliu-badges" style={styles.container}>{renderedBadges}</View>);
-                return;
-            }
-
-            fetch(`${url}/users/${user.id}.json`)
-                .then(r => r.json())
-                .then((badges: BadgeOwner) => {
-                    cache[user.id] = [...badges.roles.map(it => roles[it]), ...(badges.custom ?? [])];
-                });
-        });
     }
 }

@@ -3,7 +3,7 @@ import CommandHandler from "../core-plugins/CommandHandler";
 import CoreCommands from "../core-plugins/CoreCommands";
 import NoTrack from "../core-plugins/NoTrack";
 import { Plugin } from "../entities/Plugin";
-import { Toasts } from "../metro";
+import { Toasts } from "../metro/commons";
 import { readdir } from "../native/fs";
 import { getAssetId } from "../utils";
 import { PLUGINS_DIRECTORY } from "../utils/constants";

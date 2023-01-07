@@ -1,10 +1,11 @@
 import { disablePlugin, enablePlugin, isPluginEnabled, plugins } from "../api/PluginManager";
 import { PluginManifest } from "../entities/types";
-import { Constants, Forms, getByProps, getModule, React, ReactNative, Styles } from "../metro";
+import { getByFactoryStrings, getByProps } from "../metro";
+import { Constants, LateLoadedModules, React, ReactNative, Styles } from "../metro/commons";
 import { getAssetId } from "../utils/getAssetId";
 
 const { View, Text, FlatList, Image, ScrollView } = ReactNative;
-const Search = getModule(m => m.name === "StaticSearchBarContainer");
+const Search = getByFactoryStrings(s => s[s.length - 1] === "searchWrapper");
 
 const styles = Styles.createThemedStyleSheet({
     container: {
@@ -68,6 +69,7 @@ const styles = Styles.createThemedStyleSheet({
     }
 });
 
+let Forms;
 function PluginCard({ plugin }: { plugin: PluginManifest; }) {
     const [isEnabled, setIsEnabled] = React.useState(isPluginEnabled(plugin.name));
 
@@ -105,7 +107,8 @@ function PluginCard({ plugin }: { plugin: PluginManifest; }) {
     );
 }
 
-export default function PluginsPage() {
+export default async function PluginsPage() {
+    if (!Forms) Forms = await LateLoadedModules.Forms;
     const [search, setSearch] = React.useState(String);
 
     const entities = search ? Object.values(plugins).filter(p => {

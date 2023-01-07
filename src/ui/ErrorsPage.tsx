@@ -1,5 +1,5 @@
 import { plugins } from "../api";
-import { Constants, Forms, React, ReactNative, Styles } from "../metro";
+import { Constants, LateLoadedModules, React, ReactNative, Styles } from "../metro/commons";
 import { getAssetId } from "../utils";
 
 const { Image, ScrollView, View, Text, FlatList } = ReactNative;
@@ -64,6 +64,8 @@ const styles = Styles.createThemedStyleSheet({
     },
 });
 
+let Forms;
+
 function ErrorCard({ log }: { log: PluginLogs; }) {
     return (
         <View style={styles.card}>
@@ -82,7 +84,8 @@ function ErrorCard({ log }: { log: PluginLogs; }) {
     );
 }
 
-export default function ErrorsPage() {
+export default async function ErrorsPage() {
+    Forms = await LateLoadedModules.Forms;
     const errors = [
         ...Object.values(plugins).map(p => {
             let logs!: PluginLogs;

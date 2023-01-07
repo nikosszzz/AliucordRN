@@ -1,17 +1,95 @@
 import { sha } from "aliucord-version";
-import { Forms, getByName, Locale, React, Scenes } from "../metro";
+import { filters, getModuleLazy, waitFor } from "../metro";
+import { LateLoadedModules, Locale, React } from "../metro/commons";
 import { findInReactTree } from "../utils/findInReactTree";
-import { after } from "../utils/patcher";
 import { getAssetId } from "../utils/getAssetId";
-import AliucordPage from "./AliucordPage";
-import PluginsPage from "./PluginsPage";
-import UpdaterPage from "./UpdaterPage";
-import ThemesPage from "./ThemesPage";
-import ErrorsPage from "./ErrorsPage";
+import { after } from "../utils/patcher";
 
-export default function patchSettings() {
-    const { FormSection, FormDivider, FormRow } = Forms;
-    const UserSettingsOverviewWrapper = getByName("UserSettingsOverviewWrapper", { default: false });
+import AliucordPage from "./AliucordPage";
+import ErrorsPage from "./ErrorsPage";
+import PluginsPage from "./PluginsPage";
+import ThemesPage from "./ThemesPage";
+import UpdaterPage from "./UpdaterPage";
+
+export default async function patchSettings() {
+    const { FormSection, FormDivider, FormRow } = await LateLoadedModules.Forms;
+
+    patchScenes();
+    waitFor(filters.byName("UserSettingsOverviewWrapper"), UserSettingsOverviewWrapper => {
+        const unpatch = after(UserSettingsOverviewWrapper, "default", (_, res) => {
+            const Overview = findInReactTree(res, m => m.type?.name === "UserSettingsOverview");
+
+            // Yeet the funny Upload Logs button
+            after(Overview.type.prototype, "renderSupportAndAcknowledgements", (_, { props }) => {
+                const idx = props.children.findIndex(c => c?.type?.name === "UploadLogsButton");
+                if (idx !== -1) {
+                    props.children.splice(idx, 1);
+                }
+            });
+
+            after(Overview.type.prototype, "render", (res, { props }) => {
+                const { children } = props;
+                const { navigation } = res.thisObject.props;
+
+                const searchable = [Locale.Messages["BILLING_SETTINGS"], Locale.Messages["PREMIUM_SETTINGS"]];
+                const index = children.findIndex(x => searchable.includes(x.props.title));
+
+                children.splice(index === -1 ? 4 : index, 0, <>
+                    <FormSection key="AliucordSection" title={`Aliucord (${sha})`} >
+                        <FormRow
+                            leading={<FormRow.Icon source={getAssetId("Discord")} />}
+                            label="Aliucord"
+                            trailing={FormRow.Arrow}
+                            onPress={() =>
+                                navigation.push("Aliucord", { navigation })
+                            }
+                        />
+                        <FormDivider />
+                        <FormRow
+                            leading={<FormRow.Icon source={getAssetId("ic_settings")} />}
+                            label="Plugins"
+                            trailing={FormRow.Arrow}
+                            onPress={() =>
+                                navigation.push("AliucordPlugins", { navigation })
+                            }
+                        />
+                        <FormDivider />
+                        <FormRow
+                            leading={<FormRow.Icon source={getAssetId("ic_theme_24px")} />}
+                            label="Themes"
+                            trailing={FormRow.Arrow}
+                            onPress={() =>
+                                navigation.push("AliucordThemes", { navigation })
+                            }
+                        />
+                        <FormDivider />
+                        <FormRow
+                            leading={<FormRow.Icon source={getAssetId("ic_share_ios")} />}
+                            label="Updater"
+                            trailing={FormRow.Arrow}
+                            onPress={() =>
+                                navigation.push("AliucordUpdater", { navigation })
+                            }
+                        />
+                        <FormDivider />
+                        <FormRow
+                            leading={<FormRow.Icon source={getAssetId("ic_settings")} />}
+                            label="Errors"
+                            trailing={FormRow.Arrow}
+                            onPress={() =>
+                                navigation.push("AliucordErrors", { navigation })
+                            }
+                        />
+                    </FormSection>
+                </>);
+            });
+            unpatch();
+        });
+    }, { default: false });
+}
+
+const patchScenes = async () => {
+    const Scenes = getModuleLazy(filters.byName("getScreens"), { default: false });
 
     after(Scenes, "default", (_, res) => {
         return {
@@ -42,78 +120,7 @@ export default function patchSettings() {
                 render: ErrorsPage
             }
         };
-
         // TODO: add APluginWrapper and make it work?
         // Or should we add all plugins that register settings to this?
     });
-
-    const unpatch = after(UserSettingsOverviewWrapper, "default", (_, res) => {
-        const Overview = findInReactTree(res, m => m.type?.name === "UserSettingsOverview");
-
-        // Yeet the funny Upload Logs button
-        after(Overview.type.prototype, "renderSupportAndAcknowledgements", (_, { props }) => {
-            const idx = props.children.findIndex(c => c?.type?.name === "UploadLogsButton");
-            if (idx !== -1) {
-                props.children.splice(idx, 1);
-            }
-        });
-
-        after(Overview.type.prototype, "render", (res, { props }) => {
-            const { children } = props;
-            const { navigation } = res.thisObject.props;
-
-            const searchable = [Locale.Messages["BILLING_SETTINGS"], Locale.Messages["PREMIUM_SETTINGS"]];
-            const index = children.findIndex(x => searchable.includes(x.props.title));
-
-            children.splice(index === -1 ? 4 : index, 0, <>
-                <FormSection key="AliucordSection" title={`Aliucord (${sha})`} >
-                    <FormRow
-                        leading={<FormRow.Icon source={getAssetId("Discord")} />}
-                        label="Aliucord"
-                        trailing={FormRow.Arrow}
-                        onPress={() =>
-                            navigation.push("Aliucord", { navigation })
-                        }
-                    />
-                    <FormDivider />
-                    <FormRow
-                        leading={<FormRow.Icon source={getAssetId("ic_settings")} />}
-                        label="Plugins"
-                        trailing={FormRow.Arrow}
-                        onPress={() =>
-                            navigation.push("AliucordPlugins", { navigation })
-                        }
-                    />
-                    <FormDivider />
-                    <FormRow
-                        leading={<FormRow.Icon source={getAssetId("ic_theme_24px")} />}
-                        label="Themes"
-                        trailing={FormRow.Arrow}
-                        onPress={() =>
-                            navigation.push("AliucordThemes", { navigation })
-                        }
-                    />
-                    <FormDivider />
-                    <FormRow
-                        leading={<FormRow.Icon source={getAssetId("ic_share_ios")} />}
-                        label="Updater"
-                        trailing={FormRow.Arrow}
-                        onPress={() =>
-                            navigation.push("AliucordUpdater", { navigation })
-                        }
-                    />
-                    <FormDivider />
-                    <FormRow
-                        leading={<FormRow.Icon source={getAssetId("ic_settings")} />}
-                        label="Errors"
-                        trailing={FormRow.Arrow}
-                        onPress={() =>
-                            navigation.push("AliucordErrors", { navigation })
-                        }
-                    />
-                </FormSection>
-            </>);
-        });
-        unpatch();
-    });
-}
+};

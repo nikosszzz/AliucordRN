@@ -1,4 +1,4 @@
-import { Constants, React, Styles, ReactNative } from "../metro";
+import { Constants, React, ReactNative, Styles } from "../metro/commons";
 import { getAssetId } from "../utils";
 
 const { Image, View, Text, ScrollView } = ReactNative;
