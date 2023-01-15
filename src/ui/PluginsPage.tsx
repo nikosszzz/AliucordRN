@@ -1,7 +1,8 @@
 import { disablePlugin, enablePlugin, isPluginEnabled, plugins, uninstallPlugin } from "../api/PluginManager";
 import { Author, PluginManifest } from "../entities/types";
-import { Constants, FetchUserActions, Forms, getByName, getModule, Profiles, React, ReactNative, Styles, URLOpener, Users } from "../metro";
+import { Constants, FetchUserActions, Forms, getByName, getModule, Navigation, Profiles, React, ReactNative, Styles, URLOpener, Users } from "../metro";
 import { getAssetId } from "../utils/getAssetId";
+import PluginSettingsPage from "./PluginSettingsPage";
 
 const { View, Text, FlatList, Image, ScrollView, TouchableOpacity, LayoutAnimation } = ReactNative;
 const Search = getModule(m => m.name === "StaticSearchBarContainer");
@@ -89,7 +90,7 @@ const styles = Styles.createThemedStyleSheet({
     }
 });
 
-function PluginCard({ plugin, handleUninstall, navigation }: { plugin: PluginManifest, handleUninstall: (name: string) => void, navigation: any; }) {
+function PluginCard({ plugin, handleUninstall }: { plugin: PluginManifest, handleUninstall: (name: string) => void }) {
     const [isEnabled, setIsEnabled] = React.useState(isPluginEnabled(plugin.name));
 
     return (
@@ -151,7 +152,10 @@ function PluginCard({ plugin, handleUninstall, navigation }: { plugin: PluginMan
                                 color='brand'
                                 size='small'
                                 onPress={() => {
-                                    navigation.navigate(`AliucordPluginSettings_${plugin.name}`, { navigation });
+                                    Navigation.push(PluginSettingsPage, {
+                                        name: plugin.name,
+                                        children: plugins[plugin.name].getSettingsPage,
+                                    });
                                 }}
                             />}
                             <Button
@@ -176,7 +180,7 @@ function PluginCard({ plugin, handleUninstall, navigation }: { plugin: PluginMan
     );
 }
 
-export default function PluginsPage({ navigation }: { navigation: any; }) {
+export default function PluginsPage() {
     const [search, setSearch] = React.useState(String);
 
     const [entities, setEntities] = React.useState(search ? Object.values(plugins).filter(p => {
@@ -236,7 +240,6 @@ export default function PluginsPage({ navigation }: { navigation: any; }) {
                     renderItem={({ item }) => <PluginCard
                         key={item.name}
                         handleUninstall={handleUninstall}
-                        navigation={navigation}
                         plugin={item.manifest}
                     />}
                     keyExtractor={plugin => plugin.name}
