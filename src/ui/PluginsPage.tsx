@@ -2,7 +2,7 @@ import { disablePlugin, enablePlugin, isPluginEnabled, plugins, uninstallPlugin 
 import { Author, PluginManifest } from "../entities/types";
 import { Constants, FetchUserActions, Forms, getByName, getModule, Navigation, Profiles, React, ReactNative, Styles, URLOpener, Users } from "../metro";
 import { getAssetId } from "../utils/getAssetId";
-import PluginSettingsPage from "./PluginSettingsPage";
+import { Page } from "./Page";
 
 const { View, Text, FlatList, Image, ScrollView, TouchableOpacity, LayoutAnimation } = ReactNative;
 const Search = getModule(m => m.name === "StaticSearchBarContainer");
@@ -152,7 +152,7 @@ function PluginCard({ plugin, handleUninstall }: { plugin: PluginManifest, handl
                                 color='brand'
                                 size='small'
                                 onPress={() => {
-                                    Navigation.push(PluginSettingsPage, {
+                                    Navigation.push(Page, {
                                         name: plugin.name,
                                         children: plugins[plugin.name].getSettingsPage,
                                     });

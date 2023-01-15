@@ -37,7 +37,7 @@ const styles = Styles.createThemedStyleSheet({
 export const Settings = NavigationStack.createStackNavigator();
 const { TouchableOpacity, Image } = ReactNative;
 
-export default function PluginSettingsPage({ name, children }: Props) {
+export function Page({ name, children }: Props) {
     return (
         <NavigationNative.NavigationContainer independent>
             <Settings.Navigator
@@ -49,6 +49,9 @@ export default function PluginSettingsPage({ name, children }: Props) {
                     cardStyle: styles.card,
                     headerStyle: styles.header,
                     headerTitleContainerStyle: styles.headerTitleContainer,
+                    safeAreaInsets: {
+                        top: 0,
+                    },
                 }}
             >
                 <Settings.Screen
@@ -63,6 +66,7 @@ export default function PluginSettingsPage({ name, children }: Props) {
                                 <Image style={styles.backIcon} source={getAssetId("back-icon")} />
                             </TouchableOpacity>
                         ),
+                        ...NavigationStack.TransitionPresets.BottomSheetAndroid
                     }}
                 />
             </Settings.Navigator>
