@@ -4,6 +4,8 @@ import { Constants, FetchUserActions, Forms, getByName, getModule, Navigation, P
 import { getAssetId } from "../utils/getAssetId";
 import { Page } from "./Page";
 
+let handleUninstall;
+
 const { View, Text, FlatList, Image, ScrollView, TouchableOpacity, LayoutAnimation } = ReactNative;
 const Search = getModule(m => m.name === "StaticSearchBarContainer");
 const Button = getByName("Button", { default: false }).default;
@@ -90,7 +92,7 @@ const styles = Styles.createThemedStyleSheet({
     }
 });
 
-function PluginCard({ plugin, handleUninstall }: { plugin: PluginManifest, handleUninstall: (name: string) => void }) {
+function PluginCard({ plugin }: { plugin: PluginManifest }) {
     const [isEnabled, setIsEnabled] = React.useState(isPluginEnabled(plugin.name));
 
     return (
@@ -164,9 +166,6 @@ function PluginCard({ plugin, handleUninstall }: { plugin: PluginManifest, handl
                                 color='red'
                                 size='small'
                                 onPress={() => {
-                                    // Dialog.show({
-                                    //     title: "Uninstall Plugin"
-                                    // });
                                     uninstallPlugin(plugin.name).then(res => {
                                         res && handleUninstall(plugin.name);
                                     });
@@ -201,7 +200,7 @@ export default function PluginsPage() {
         return false;
     }) : Object.values(plugins));
 
-    const handleUninstall = (name: string) => {
+    handleUninstall = (name: string) => {
         setEntities(entities.filter(item => item.name !== name));
 
         LayoutAnimation.configureNext({
@@ -239,7 +238,6 @@ export default function PluginsPage() {
                     data={entities}
                     renderItem={({ item }) => <PluginCard
                         key={item.name}
-                        handleUninstall={handleUninstall}
                         plugin={item.manifest}
                     />}
                     keyExtractor={plugin => plugin.name}
