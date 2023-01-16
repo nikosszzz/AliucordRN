@@ -1,8 +1,9 @@
 import { sha } from "aliucord-version";
-import { Forms, getByName, Locale, React, Scenes } from "../metro";
+import { getByName, Locale, React, Scenes } from "../metro";
 import { findInReactTree } from "../utils/findInReactTree";
 import { getAssetId } from "../utils/getAssetId";
 import { after } from "../utils/patcher";
+import { Forms } from "./components";
 import AliucordPage from "./AliucordPage";
 import ErrorsPage from "./ErrorsPage";
 import PluginsPage from "./PluginsPage";
@@ -10,7 +11,7 @@ import ThemesPage from "./ThemesPage";
 import UpdaterPage from "./UpdaterPage";
 
 export default function patchSettings() {
-    const { FormSection, FormDivider, FormRow } = Forms;
+    const { FormSection, FormDivider, FormRow, FormIcon } = Forms;
     const UserSettingsOverviewWrapper = getByName("UserSettingsOverviewWrapper", { default: false });
 
     after(Scenes, "default", (_, res) => {
@@ -67,7 +68,7 @@ export default function patchSettings() {
             children.splice(index === -1 ? 4 : index, 0, <>
                 <FormSection key="AliucordSection" title={`Aliucord (${sha})`} >
                     <FormRow
-                        leading={<FormRow.Icon source={getAssetId("Discord")} />}
+                        leading={<FormIcon source={getAssetId("Discord")} />}
                         label="Aliucord"
                         trailing={FormRow.Arrow}
                         onPress={() =>
@@ -76,7 +77,7 @@ export default function patchSettings() {
                     />
                     <FormDivider />
                     <FormRow
-                        leading={<FormRow.Icon source={getAssetId("ic_settings")} />}
+                        leading={<FormIcon source={getAssetId("ic_settings")} />}
                         label="Plugins"
                         trailing={FormRow.Arrow}
                         onPress={() =>
@@ -85,7 +86,7 @@ export default function patchSettings() {
                     />
                     <FormDivider />
                     <FormRow
-                        leading={<FormRow.Icon source={getAssetId("ic_theme_24px")} />}
+                        leading={<FormIcon source={getAssetId("ic_theme_24px")} />}
                         label="Themes"
                         trailing={FormRow.Arrow}
                         onPress={() =>
@@ -94,7 +95,7 @@ export default function patchSettings() {
                     />
                     <FormDivider />
                     <FormRow
-                        leading={<FormRow.Icon source={getAssetId("ic_share_ios")} />}
+                        leading={<FormIcon source={getAssetId("ic_share_ios")} />}
                         label="Updater"
                         trailing={FormRow.Arrow}
                         onPress={() =>
@@ -103,7 +104,7 @@ export default function patchSettings() {
                     />
                     <FormDivider />
                     <FormRow
-                        leading={<FormRow.Icon source={getAssetId("ic_settings")} />}
+                        leading={<FormIcon source={getAssetId("ic_settings")} />}
                         label="Errors"
                         trailing={FormRow.Arrow}
                         onPress={() =>

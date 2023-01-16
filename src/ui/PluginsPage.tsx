@@ -1,14 +1,12 @@
 import { disablePlugin, enablePlugin, isPluginEnabled, plugins, uninstallPlugin } from "../api/PluginManager";
 import { Author, PluginManifest } from "../entities/types";
-import { Constants, FetchUserActions, Forms, getByName, getModule, Navigation, Profiles, React, ReactNative, Styles, URLOpener, Users } from "../metro";
+import { Constants, FetchUserActions, Navigation, Profiles, React, Styles, URLOpener, Users } from "../metro";
 import { getAssetId } from "../utils/getAssetId";
 import { Page } from "./Page";
+import { General, Button, Search, Forms } from "./components";
 
-let handleUninstall;
-
-const { View, Text, FlatList, Image, ScrollView, TouchableOpacity, LayoutAnimation } = ReactNative;
-const Search = getModule(m => m.name === "StaticSearchBarContainer");
-const Button = getByName("Button", { default: false }).default;
+let handleUninstall: (name: string) => void;
+const { View, Text, FlatList,  Image, ScrollView, Pressable, LayoutAnimation } = General;
 
 const styles = Styles.createThemedStyleSheet({
     container: {
@@ -94,6 +92,7 @@ const styles = Styles.createThemedStyleSheet({
 
 function PluginCard({ plugin }: { plugin: PluginManifest }) {
     const [isEnabled, setIsEnabled] = React.useState(isPluginEnabled(plugin.name));
+    const { FormSwitch, FormText } = Forms;
 
     return (
         <View style={styles.card}>
@@ -129,7 +128,7 @@ function PluginCard({ plugin }: { plugin: PluginManifest }) {
                             </Text>}
                     </Text>
                 )}
-                trailing={<Forms.FormSwitch value={isEnabled} style={{ marginVertical: -15 }} onValueChange={v => {
+                trailing={<FormSwitch value={isEnabled} style={{ marginVertical: -15 }} onValueChange={v => {
                     if (v)
                         enablePlugin(plugin.name);
                     else
@@ -139,12 +138,12 @@ function PluginCard({ plugin }: { plugin: PluginManifest }) {
                 }} />}
             />
             <View style={styles.bodyCard}>
-                <Forms.FormText style={styles.bodyText} adjustsFontSizeToFit={true}>{plugin.description ?? "No description provided."}</Forms.FormText>
+                <FormText style={styles.bodyText} adjustsFontSizeToFit={true}>{plugin.description ?? "No description provided."}</FormText>
                 <View style={styles.actions}>
                     {!!plugin.repo && (
-                        <TouchableOpacity style={styles.icons} onPress={() => URLOpener.openURL(plugin.repo)}>
+                        <Pressable style={styles.icons} onPress={() => URLOpener.openURL(plugin.repo)}>
                             <Image source={getAssetId("img_account_sync_github_white")} />
-                        </TouchableOpacity>
+                        </Pressable>
                     )}
                     <View style={{ marginLeft: "auto" }}>
                         <View style={{ flexDirection: "row" }} >
@@ -215,7 +214,7 @@ export default function PluginsPage() {
         <Search
             style={styles.search}
             placeholder='Search plugins...'
-            onChangeText={(v: string) => setSearch(v)}
+            onChangeText={v => setSearch(v)}
         />
         <ScrollView style={styles.container}>
             {!entities.length ?
