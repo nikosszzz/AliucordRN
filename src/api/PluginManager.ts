@@ -77,7 +77,7 @@ export async function uninstallPlugin(plugin: string): Promise<boolean> {
             delete plugins[plugin];
             delete settingsPlugins[plugin];
 
-            Toasts.open({ content: `Uninstalled plugin: ${plugin}`, source: getAssetId("Check") });
+            Toasts.open({ content: `Uninstalled plugin: ${plugin}`, source: getAssetId("trash") });
         }
     } catch (err) {
         logger.error(`Failed to uninstall plugin ${plugin}\n`, err);
