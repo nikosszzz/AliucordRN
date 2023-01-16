@@ -1,6 +1,5 @@
 import { useSettings } from "../api/Settings";
-import { React } from "../metro";
-import { URLOpener } from "../metro/index";
+import { React, URLOpener } from "../metro";
 import { ALIUCORD_GITHUB, ALIUCORD_INVITE, ALIUCORD_PATREON } from "../utils/constants";
 import { getAssetId } from "../utils/getAssetId";
 import { Forms, General } from "./components";

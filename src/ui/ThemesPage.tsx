@@ -201,7 +201,7 @@ export default function ThemesPage() {
         <Search
             style={styles.search}
             placeholder='Search themes...'
-            onChangeText={(v: string) => setSearch(v)}
+            onChangeText={v => setSearch(v)}
         />
         <ScrollView style={styles.container}>
             {!!excludedThemes.invalidThemes.length && <FlatList

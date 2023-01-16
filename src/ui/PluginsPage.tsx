@@ -1,5 +1,5 @@
 import { disablePlugin, enablePlugin, isPluginEnabled, plugins, uninstallPlugin } from "../api/PluginManager";
-import { Author, PluginManifest } from "../entities/types";
+import { Author, PluginManifest } from "../entities";
 import { Constants, FetchUserActions, Navigation, Profiles, React, Styles, URLOpener, Users } from "../metro";
 import { getAssetId } from "../utils/getAssetId";
 import { Page } from "./Page";

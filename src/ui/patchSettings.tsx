@@ -1,7 +1,6 @@
 import { sha } from "aliucord-version";
 import { getByName, Locale, React, Scenes } from "../metro";
-import { findInReactTree } from "../utils/findInReactTree";
-import { getAssetId } from "../utils/getAssetId";
+import { findInReactTree, getAssetId } from "../utils";
 import { after } from "../utils/patcher";
 import { Forms } from "./components";
 import AliucordPage from "./AliucordPage";
@@ -43,8 +42,6 @@ export default function patchSettings() {
                 render: ErrorsPage
             }
         };
-        // TODO: add APluginWrapper and make it work?
-        // Or should we add all plugins that register settings to this?
     });
 
     const unpatch = after(UserSettingsOverviewWrapper, "default", (_, res) => {
