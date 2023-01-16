@@ -47,7 +47,7 @@ const styles = Styles.createThemedStyleSheet({
         alignItems: "center",
         paddingLeft: 16,
         paddingRight: 12,
-        paddingBottom: 16
+        paddingBottom: 10
     },
     icons: {
         width: 22,
@@ -86,7 +86,7 @@ const styles = Styles.createThemedStyleSheet({
         background: "none"
     },
     button: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 10,
     }
 });
 
