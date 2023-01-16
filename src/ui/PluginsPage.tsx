@@ -86,7 +86,7 @@ const styles = Styles.createThemedStyleSheet({
         background: "none"
     },
     button: {
-        paddingHorizontal: 10,
+        paddingHorizontal: 20,
     }
 });
 
